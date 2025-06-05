@@ -1,0 +1,12 @@
+# Dades i resultats grans
+*.tsv
+*.csv
+data/raw/
+
+# Fitxers d’IDE/editors
+.vscode/
+*.swp
+
+# Compilats
+build/
+*.exe
