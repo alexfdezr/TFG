@@ -1,0 +1,66 @@
+@startuml
+
+entity Usuaris {
+  * _id : ObjectId <<PK>>
+  --
+  codi_usuari : String
+  nom : String
+  data_creacio : Date
+}
+
+entity PuntsHistorics {
+  * _id : ObjectId <<PK>>
+  --
+  nom : String
+  descripcio : String
+  coordenades : GeoJSON
+  comarca_id : ObjectId <<FK>>
+}
+
+entity Comarques {
+  * _id : ObjectId <<PK>>
+  --
+  nom : String
+}
+
+entity Fotografies {
+  * _id : ObjectId <<PK>>
+  --
+  tipus : String
+  punt_id : ObjectId <<FK>>
+  foto_url : String
+  foto_base64 : String
+  descripcio : String
+  data : Date
+  usuari_id : ObjectId <<FK>>
+}
+
+entity ConquestesPunts {
+  * _id : ObjectId <<PK>>
+  --
+  usuari_id : ObjectId <<FK>>
+  punt_id : ObjectId <<FK>>
+  foto_id : ObjectId <<FK>>
+  data_conquesta : Date
+}
+
+entity ConquestesComarques {
+  * _id : ObjectId <<PK>>
+  --
+  usuari_id : ObjectId <<FK>>
+  comarca_id : ObjectId <<FK>>
+  data_conquesta : Date
+}
+
+' Relacions
+Usuaris ||--o{ Fotografies : fa
+PuntsHistorics ||--o{ Fotografies : té
+Comarques ||--o{ PuntsHistorics : conté
+
+Usuaris ||--o{ ConquestesPunts : conquista
+PuntsHistorics ||--o{ ConquestesPunts : és_conquistat
+
+Usuaris ||--o{ ConquestesComarques : conquista
+Comarques ||--o{ ConquestesComarques : és_conquistada
+
+@enduml
