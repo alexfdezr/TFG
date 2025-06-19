@@ -127,28 +127,42 @@ class _TakePhotoScreenState extends State<TakePhotoScreen> {
           if (_conquerit) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.all(32.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const Icon(Icons.emoji_events, color: AppColors.verd, size: 80),
+                    const SizedBox(height: 20),
                     const Text(
-                      '🏆 Has conquerit el punt! 🏆',
+                      'Has conquerit el punt! 🏆',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: AppColors.verd,
+                        shadows: [
+                          Shadow(blurRadius: 4, color: Colors.black26, offset: Offset(2, 2))
+                        ],
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Felicitats! Has conquerit aquest punt històric!',
+                      style: TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.blau),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.blau,
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                      ),
                       onPressed: () {
                         Navigator.pop(context, true);
                       },
                       child: const Text(
                         'Tornar al mapa',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
                     ),
                   ],
@@ -183,7 +197,10 @@ class _TakePhotoScreenState extends State<TakePhotoScreen> {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.verd),
                           onPressed: _enviarFoto,
-                          child: const Text('Conquerir'),
+                          child: const Text(
+                            'Conquerir',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ],
                     ),

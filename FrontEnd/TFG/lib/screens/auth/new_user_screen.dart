@@ -20,6 +20,7 @@ class _NewUserScreenState extends State<NewUserScreen> {
   final TextEditingController _nomController = TextEditingController();
   String? errorMessage;
   late String generatedCode;
+  String? acceptacio = 'no';
 
   @override
   void initState() {
@@ -44,6 +45,11 @@ class _NewUserScreenState extends State<NewUserScreen> {
       return;
     }
 
+    if (acceptacio != 'sí') {
+      setState(() => errorMessage = "Has d'acceptar les condicions abans de continuar.");
+      return;
+    }
+
     setState(() => errorMessage = null);
 
     final success = await ApiService.crearNouUsuari(nom, generatedCode);
@@ -58,7 +64,7 @@ class _NewUserScreenState extends State<NewUserScreen> {
         MaterialPageRoute(builder: (_) => const GameScreen()),
       );
     } else {
-      setState(() => errorMessage = 'Error creant l\'usuari. Torna-ho a intentar.');
+      setState(() => errorMessage = "Error creant l'usuari. Torna-ho a intentar.");
     }
   }
 
@@ -81,7 +87,7 @@ class _NewUserScreenState extends State<NewUserScreen> {
             ),
             const SizedBox(width: 8),
             const Text(
-              'TerritoCat',
+              'TerritoCAT',
               style: TextStyle(color: AppColors.groc),
             ),
           ],
@@ -109,25 +115,15 @@ class _NewUserScreenState extends State<NewUserScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (errorMessage != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  errorMessage!,
-                  style: const TextStyle(color: AppColors.error),
-                  textAlign: TextAlign.center,
-                ),
-              ],
               const SizedBox(height: 30),
-              const Text(AppTexts.instruccioIdentificador,
-                  textAlign: TextAlign.center),
+              const Text(AppTexts.instruccioIdentificador, textAlign: TextAlign.center),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     generatedCode,
-                    style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.copy),
@@ -138,11 +134,45 @@ class _NewUserScreenState extends State<NewUserScreen> {
                 ],
               ),
               const SizedBox(height: 30),
+              Text(
+                'Les fotografies que realitzis seran utilitzades per enriquir la Xarxa Arxius Comarcals de Catalunya. Les imatges podran ser visualitzades per altres usuaris un cop conquerit el punt.',
+                style: const TextStyle(fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Accepto'),
+                      value: 'sí',
+                      groupValue: acceptacio,
+                      onChanged: (val) => setState(() => acceptacio = val),
+                    ),
+                  ),
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('No accepto'),
+                      value: 'no',
+                      groupValue: acceptacio,
+                      onChanged: (val) => setState(() => acceptacio = val),
+                    ),
+                  ),
+                ],
+              ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  errorMessage!,
+                  style: const TextStyle(color: AppColors.error),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 30),
               ElevatedButton(
                 style: CustomStyles.botoPrincipal(size: const Size(200, 60)),
                 onPressed: _comencar,
-                child: const Text(AppTexts.botoComencar,
-                    style: TextStyle(fontSize: 20)),
+                child: const Text(AppTexts.botoComencar, style: TextStyle(fontSize: 20)),
               ),
             ],
           ),

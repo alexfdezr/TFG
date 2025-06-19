@@ -198,4 +198,45 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, int>> getPuntsConqueritsPerNom(String codiUsuari) async {
+    final response = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/punts_conquerits_comarca/$codiUsuari'),
+    );
+
+    if (response.statusCode == 200) {
+      return Map<String, int>.from(jsonDecode(response.body));
+    } else {
+      throw Exception('Error obtenint punts conquerits per comarca');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getPuntsPerComarca(String nomComarca) async {
+    final response = await http.get(Uri.parse('${AppConfig.baseUrl}/punts_comarca/${Uri.encodeComponent(nomComarca)}'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> dades = json.decode(response.body);
+      return dades.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error obtenint els punts de la comarca $nomComarca');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getRanking() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/ranking'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> dades = json.decode(response.body);
+        return dades.cast<Map<String, dynamic>>();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('Error obtenint ranking: $e');
+      return [];
+    }
+  }
+
 }

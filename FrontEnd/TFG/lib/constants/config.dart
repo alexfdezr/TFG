@@ -1,15 +1,9 @@
 class AppConfig {
-  // Canvia aquesta variable segons si vols treballar en local o amb servidor
-  static const bool useLocal = true;
+  static const bool useLocal = false;
 
-  // IP local per treballar amb Flask localment
   static const String localBaseUrl = 'http://127.0.0.1:5000';
-  //static const String localBaseUrl = 'http://192.168.11.161:5000';
-  //static const String localBaseUrl = 'http://192.168.1.43:5000';
 
-  // URL del servidor
-  static const String serverBaseUrl = 'https://el-meu-servidor.com';
+  static const String serverBaseUrl = 'http://158.109.8.44:8080';
 
-  // Mètode per obtenir la base URL segons entorn
   static String get baseUrl => useLocal ? localBaseUrl : serverBaseUrl;
 }

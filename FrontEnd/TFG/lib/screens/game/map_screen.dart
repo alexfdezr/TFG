@@ -11,13 +11,17 @@ import '../../services/api_service.dart';
 import '../../utils/image_utils.dart';
 import 'mapa/search_comarca_screen.dart';
 import 'mapa/take_photo_screen.dart';
+import '../shared/fullscreen_image_viewer.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final MapController mapController;
+
+  const MapScreen({super.key, required this.mapController});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
+
 
 class _MapScreenState extends State<MapScreen> {
   LatLng? currentPosition;
@@ -44,9 +48,12 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _inicialitzar() async {
     await _recuperarCodiUsuari();
     await _determinePosition();
-    await _carregarPunts();
-    await _carregarFotosUsuari();
-    await _actualitzarComarca();
+
+    await Future.wait([
+      _carregarPunts(),
+      _carregarFotosUsuari(),
+      _actualitzarComarca(),
+    ]);
   }
 
   Future<void> _recuperarCodiUsuari() async {
@@ -150,24 +157,18 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _actualitzarComarca() async {
-    final comarcaNom = await ApiService.getComarcaPerCoordenades(
-      currentPosition!.latitude,
-      currentPosition!.longitude,
-    );
+    final coords = currentPosition;
+    if (coords == null || codiUsuari == null) return;
 
-    final comarcaInfo = await ApiService.getComarques();
-    final comarca = comarcaInfo.firstWhere(
-          (c) => c['nom'] == comarcaNom,
-      orElse: () => {},
-    );
+    final futures = await Future.wait([
+      ApiService.getComarcaPerCoordenades(coords.latitude, coords.longitude),
+      ApiService.getPuntsConqueritsPerNom(codiUsuari!),
+    ]);
 
-    if (comarca.isEmpty) return;
+    final comarcaNom = futures[0] as String;
+    final conquestesPerComarca = futures[1] as Map<String, int>;
 
-    final comarcaId = comarca['_id'].toString();
-
-    final conquestesPerComarca = await ApiService.getPuntsConqueritsComarca(codiUsuari ?? '');
-
-    final numPunts = conquestesPerComarca[comarcaId] ?? 0;
+    final numPunts = conquestesPerComarca[comarcaNom] ?? 0;
 
     setState(() {
       comarcaActual = comarcaNom;
@@ -181,6 +182,15 @@ class _MapScreenState extends State<MapScreen> {
     final fotos = punt['foto_urls'] ?? [];
     final fotoUsuari = fotosUsuari[punt['nom']];
     final fotosAltres = fotosAltresUsuaris[punt['nom']] ?? [];
+
+    void obrirVisor(List<String> imatges, int indexInicial) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullscreenImageViewer(images: imatges, initialIndex: indexInicial),
+        ),
+      );
+    }
 
     showModalBottomSheet(
       backgroundColor: AppColors.groc,
@@ -205,9 +215,12 @@ class _MapScreenState extends State<MapScreen> {
                       scrollDirection: Axis.horizontal,
                       itemCount: fotos.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) => ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: getImageWidget(fotos[index], width: 160),
+                      itemBuilder: (context, index) => GestureDetector(
+                        onTap: () => obrirVisor(fotos.cast<String>(), index),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: getImageWidget(fotos[index], width: 160),
+                        ),
                       ),
                     ),
                   ),
@@ -222,9 +235,12 @@ class _MapScreenState extends State<MapScreen> {
                       scrollDirection: Axis.horizontal,
                       itemCount: fotosAltres.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) => ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: getImageWidget(fotosAltres[index], width: 160),
+                      itemBuilder: (context, index) => GestureDetector(
+                        onTap: () => obrirVisor(fotosAltres, index),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: getImageWidget(fotosAltres[index], width: 160),
+                        ),
                       ),
                     ),
                   ),
@@ -234,9 +250,12 @@ class _MapScreenState extends State<MapScreen> {
                   const Center(child: Text("La teva fotografia:", style: TextStyle(fontWeight: FontWeight.bold))),
                   const SizedBox(height: 10),
                   Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: getImageWidget(fotoUsuari, width: 220),
+                    child: GestureDetector(
+                      onTap: () => obrirVisor([fotoUsuari], 0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: getImageWidget(fotoUsuari, width: 220),
+                      ),
                     ),
                   ),
                 ],
@@ -247,7 +266,7 @@ class _MapScreenState extends State<MapScreen> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () async {
-                        Navigator.pop(context); // tancar el popup abans d'anar a TakePhoto
+                        Navigator.pop(context);
                         final conquerit = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(
@@ -300,7 +319,7 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.blau,
-        title: const Text('Territocat', style: TextStyle(color: AppColors.groc)),
+        title: const Text('TerritoCAT', style: TextStyle(color: AppColors.groc, fontWeight: FontWeight.bold)),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -312,7 +331,7 @@ class _MapScreenState extends State<MapScreen> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: currentPosition!,
-              initialZoom: 15.5,
+              initialZoom: 17.0,
               onPositionChanged: (pos, hasGesture) {
                 final moved = pos.center != currentPosition;
                 if (moved != showRecenterButton) {
@@ -350,9 +369,35 @@ class _MapScreenState extends State<MapScreen> {
                 markers: [
                   Marker(
                     point: currentPosition!,
-                    width: 20,
-                    height: 20,
-                    child: const Icon(Icons.circle, color: Colors.blue, size: 16),
+                    width: 25,
+                    height: 25,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.2),
+                      duration: const Duration(seconds: 1),
+                      curve: Curves.easeInOut,
+                      builder: (context, scale, child) {
+                        return Transform.scale(
+                          scale: scale,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue.withOpacity(0.3),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      onEnd: () => setState(() {}), // reinicia animació
+                    ),
                   ),
                 ],
               ),
@@ -366,7 +411,7 @@ class _MapScreenState extends State<MapScreen> {
               child: Center(
                 child: TextButton(
                   onPressed: () {
-                    _mapController.move(currentPosition!, 15.5);
+                    _mapController.move(currentPosition!, 17.0);
                     setState(() {
                       showRecenterButton = false;
                     });

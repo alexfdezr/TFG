@@ -68,7 +68,7 @@ class _ExistingUserScreenState extends State<ExistingUserScreen> {
           children: [
             Image.asset('assets/images/icona_app.png', height: 30),
             const SizedBox(width: 8),
-            const Text('TerritoCat', style: TextStyle(color: AppColors.groc)),
+            const Text('TerritoCAT', style: TextStyle(color: AppColors.groc)),
           ],
         ),
         centerTitle: true,

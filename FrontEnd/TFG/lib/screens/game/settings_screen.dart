@@ -4,7 +4,7 @@ import 'settings/qui_som_screen.dart';
 import 'settings/informacio_legal_screen.dart';
 import 'settings/instruccions_screen.dart';
 import 'settings/identificador_screen.dart';
-import 'settings/notificacions_screen.dart';
+import 'settings/logout_confirmation_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -29,35 +29,61 @@ class SettingsScreen extends StatelessWidget {
         'pantalla': const IdentificadorScreen(),
       },
       {
-        'titol': 'Notificacions',
-        'pantalla': const NotificacionsScreen(),
+        'titol': 'Tancar sessió',
+        'pantalla': const LogoutConfirmationScreen(),
+        'color': AppColors.error,
+        'icona': Icons.logout,
       },
     ];
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.blau,
-        title: const Text('Configuració', style: TextStyle(color: AppColors.groc)),
+        title: const Text('Configuració', style: TextStyle(color: AppColors.groc, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        automaticallyImplyLeading: false, // <- elimina el botó enrere
+        automaticallyImplyLeading: false,
       ),
-      body: ListView.separated(
-        itemCount: opcions.length,
-        padding: const EdgeInsets.all(16),
-        separatorBuilder: (_, __) => const Divider(),
-        itemBuilder: (context, index) {
-          final opcio = opcions[index];
-          return ListTile(
-            title: Text(opcio['titol']),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => opcio['pantalla']),
-              );
-            },
-          );
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              itemCount: opcions.length,
+              padding: const EdgeInsets.all(16),
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, index) {
+                final opcio = opcions[index];
+                return ListTile(
+                  title: Text(
+                    opcio['titol'],
+                    style: TextStyle(
+                      color: opcio['color'] == AppColors.error ? AppColors.error : null,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  trailing: Icon(
+                    opcio['icona'] ?? Icons.arrow_forward_ios,
+                    color: opcio['color'] == AppColors.error ? AppColors.error : null,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => opcio['pantalla']),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Center(
+              child: Text(
+                'TerritoCAT v1.0 - juny 2025',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

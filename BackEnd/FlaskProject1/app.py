@@ -115,30 +115,33 @@ def inserir_fotografies_historiques():
         print(f"{len(resultats.inserted_ids)} fotografies històriques inserides.")
 
 def assignar_comarques_a_punts():
-    # Carreguem les divisions des del fitxer
     with open("divisions-comarques.json", "r", encoding="utf-8") as f:
         geojson = json.load(f)
 
-    # Convertim les geometries a formes vàlides i associem amb noms
     comarques_shapes = []
     for feature in geojson["features"]:
         try:
             nom = feature["properties"]["NOMCOMAR"]
-            geom = shape(feature["geometry"]).buffer(0)  # repara topologia
+            geom = shape(feature["geometry"]).buffer(0)
             bounds = geom.bounds
             comarques_shapes.append((nom, geom, bounds))
         except Exception as e:
             print(f"Error processant comarca {feature['properties'].get('NOMCOMAR', 'desconeguda')}: {e}")
 
-    # Associem cada comarca amb el seu _id de la base de dades
     comarca_to_id = {doc["nom"]: doc["_id"] for doc in comarques.find({}, {"nom": 1})}
 
     actualitzats = 0
-    for punt in punts_historics.find({"comarca_id": None}):
+    for punt in punts_historics.find({
+        "$or": [
+            {"comarca_id": None},
+            {"comarca_nom": {"$exists": False}}
+        ]
+    }):
         coords = punt["coordenades"]["coordinates"]
         punt_shape = Point(coords)
 
         comarca_id = None
+        comarca_nom = None
         min_dist = float('inf')
 
         for c_nom, c_geom, (minx, miny, maxx, maxy) in comarques_shapes:
@@ -148,19 +151,24 @@ def assignar_comarques_a_punts():
 
                 if c_geom.contains(punt_shape):
                     comarca_id = comarca_to_id.get(c_nom)
+                    comarca_nom = c_nom
                     break
 
                 dist = punt_shape.distance(c_geom)
                 if dist < min_dist:
                     comarca_id = comarca_to_id.get(c_nom)
+                    comarca_nom = c_nom
                     min_dist = dist
             except GEOSException as e:
                 print(f"Error amb la geometria de {c_nom}: {e}")
 
-        if comarca_id:
+        if comarca_id and comarca_nom:
             punts_historics.update_one(
                 {"_id": punt["_id"]},
-                {"$set": {"comarca_id": comarca_id}}
+                {"$set": {
+                    "comarca_id": comarca_id,
+                    "comarca_nom": comarca_nom
+                }}
             )
             actualitzats += 1
 
@@ -311,6 +319,30 @@ def obtenir_punts_hist():
 def punts_per_comarca():
     return jsonify(obtenir_punts_per_comarca())
 
+@app.route('/punts_comarca/<nom_comarca>', methods=['GET'])
+def obtenir_punts_comarca_per_nom(nom_comarca):
+    punts = list(punts_historics.find({'comarca_nom': nom_comarca}))
+
+    for punt in punts:
+        punt['_id'] = str(punt['_id'])  # transforma l'ObjectId principal
+        if 'comarca_id' in punt and punt['comarca_id'] is not None:
+            punt['comarca_id'] = str(punt['comarca_id'])  # també aquest camp
+        # opcionalment, si tens altres ObjectIds com punt_id dins de fotos, converteix-los aquí també
+
+    return jsonify(punts)
+
+@app.route("/debug_punts_comarques")
+def debug_punts_comarques():
+    from collections import defaultdict
+    agrupats = defaultdict(list)
+
+    for punt in punts_historics.find():
+        comarca = punt.get("comarca_nom", "Sense comarca")
+        agrupats[comarca].append(punt.get("nom", "Sense nom"))
+
+    resultat = {comarca: municipis for comarca, municipis in agrupats.items()}
+    return jsonify(resultat)
+
 @app.route('/municipis_no_assignats', methods=['GET'])
 def municipis_no_assignats():
     return jsonify(obtenir_municipis_no_assignats())
@@ -383,29 +415,56 @@ def conquerir_punt():
 
 @app.route('/punts_conquerits_comarca/<codi_usuari>', methods=['GET'])
 def punts_conquerits_comarca(codi_usuari):
-    resultats = conquestes_punts.aggregate([
-        {"$match": {"codi_usuari": codi_usuari}},
-        {"$lookup": {
-            "from": "punts_historics",
-            "localField": "punt_id",
-            "foreignField": "_id",
-            "as": "punt_info"
-        }},
-        {"$unwind": "$punt_info"},
-        {"$lookup": {
-            "from": "comarques",
-            "localField": "punt_info.comarca_id",
-            "foreignField": "_id",
-            "as": "comarca_info"
-        }},
-        {"$unwind": "$comarca_info"},
-        {"$group": {
-            "_id": "$comarca_info.nom",
-            "punts_conquerits": {"$sum": 1}
-        }}
-    ])
-    punts_per_comarca = {r['_id']: r['punts_conquerits'] for r in resultats}
-    return jsonify(punts_per_comarca)
+    conquestes = conquestes_punts.find({"codi_usuari": codi_usuari})
+    punt_ids = [c["punt_id"] for c in conquestes]
+
+    # Busquem pels noms dels punts conquerits
+    punts = punts_historics.find({"nom": {"$in": punt_ids}})
+    comarca_conquestes = {}
+    for punt in punts:
+        nom_comarca = punt.get("comarca_nom")
+        if nom_comarca:
+            comarca_conquestes[nom_comarca] = comarca_conquestes.get(nom_comarca, 0) + 1
+
+    return jsonify(comarca_conquestes)
+
+@app.route('/ranking', methods=['GET'])
+def obtenir_ranking():
+    usuaris_cursor = usuaris.find({}, {'_id': 0, 'codi_usuari': 1, 'nom': 1})
+    usuaris_llista = list(usuaris_cursor)
+
+    ranking = []
+
+    for usuari in usuaris_llista:
+        codi = usuari['codi_usuari']
+        nom = usuari.get('nom', 'Anònim')
+
+        conquestes = conquestes_punts.find({"codi_usuari": codi})
+        punt_ids = [c["punt_id"] for c in conquestes]
+
+        punts = punts_historics.find({"nom": {"$in": punt_ids}})
+        comarca_counts = {}
+        for punt in punts:
+            comarca_id = punt.get("comarca_id")
+            if comarca_id:
+                comarca_counts[comarca_id] = comarca_counts.get(comarca_id, 0) + 1
+
+        comarques_conquerides = sum(1 for v in comarca_counts.values() if v >= 5)
+        punts_conquerits = len(punt_ids)
+
+        ranking.append({
+            "codi_usuari": codi,
+            "nom": nom,
+            "comarques": comarques_conquerides,
+            "punts": punts_conquerits,
+        })
+
+    ranking_ordenat = sorted(
+        ranking,
+        key=lambda x: (-x["comarques"], -x["punts"])
+    )
+
+    return jsonify(ranking_ordenat)
 
 ############################################################
 #                    RUTES FOTOGRAFIES                     #

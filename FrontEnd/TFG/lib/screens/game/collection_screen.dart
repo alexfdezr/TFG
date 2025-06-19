@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../constants/colors.dart';
 import '../../services/api_service.dart';
+import 'collection/comarca_detail_screen.dart';
 
 class CollectionScreen extends StatefulWidget {
-  const CollectionScreen({super.key});
+  final MapController mapController;
+
+  const CollectionScreen({super.key, required this.mapController});
 
   @override
   State<CollectionScreen> createState() => _CollectionScreenState();
@@ -13,7 +18,9 @@ class CollectionScreen extends StatefulWidget {
 
 class _CollectionScreenState extends State<CollectionScreen> {
   List<Map<String, dynamic>> comarques = [];
+  Map<String, int> conquestesPerComarca = {};
   String? userName;
+  String? userCode;
   Map<String, int> resum = {'comarques': 0, 'punts': 0};
 
   @override
@@ -26,18 +33,50 @@ class _CollectionScreenState extends State<CollectionScreen> {
     final prefs = await SharedPreferences.getInstance();
     final nom = prefs.getString('user_nom') ?? '';
     final codi = prefs.getString('user_code') ?? '';
+
     final llista = await ApiService.getComarques();
     final dadesResum = await ApiService.getResumConquestes(codi);
+    final conquestes = await ApiService.getPuntsConqueritsPerNom(codi);
 
     setState(() {
       userName = nom;
+      userCode = codi;
       resum = dadesResum;
-      comarques = llista.map((e) => {
-        'nom': e['nom'],
-        'conquerides': 0,
-        'totals': 5,
+      conquestesPerComarca = conquestes;
+      comarques = llista.map((e) {
+        final nom = e['nom'];
+        final conquerits = conquestes[nom] ?? 0;
+        return {
+          'nom': nom,
+          'conquerides': conquerits,
+          'totals': 5,
+        };
       }).toList();
     });
+  }
+
+  Future<void> centrarComarca(String nomComarca) async {
+    final bounds = await ApiService.getBoundsComarca(nomComarca);
+    if (bounds != null) {
+      final zona = LatLngBounds(
+        LatLng(bounds['minLat'] as double, bounds['minLng'] as double),
+        LatLng(bounds['maxLat'] as double, bounds['maxLng'] as double),
+      );
+      widget.mapController.fitBounds(
+        zona,
+        options: const FitBoundsOptions(padding: EdgeInsets.all(50)),
+      );
+    }
+  }
+
+  void obrirDetallComarca(String nomComarca) {
+    if (userCode == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ComarcaDetailScreen(comarca: nomComarca, codiUsuari: userCode!),
+      ),
+    );
   }
 
   @override
@@ -46,7 +85,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.blau,
         title: Text('Col·lecció de ${userName ?? ""}',
-            style: const TextStyle(color: AppColors.groc)),
+            style: const TextStyle(color: AppColors.groc, fontWeight: FontWeight.bold)),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -55,8 +94,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           : Column(
         children: [
           Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -72,17 +110,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       children: [
                         const Text(
                           'Comarques conquerides',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '${resum['comarques']}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -100,17 +133,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       children: [
                         const Text(
                           'Punts conquerits',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '${resum['punts']}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -126,11 +154,31 @@ class _CollectionScreenState extends State<CollectionScreen> {
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
                 final comarca = comarques[index];
-                return ListTile(
-                  title: Text(comarca['nom']),
-                  trailing: Text(
-                    '${comarca['conquerides']} / ${comarca['totals']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                final conquerides = comarca['conquerides'];
+                final totals = comarca['totals'];
+                final conquerida = conquerides >= totals;
+
+                return GestureDetector(
+                  onTap: () => obrirDetallComarca(comarca['nom']),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: conquerida ? AppColors.verd : Colors.grey,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          comarca['nom'],
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          conquerida ? 'Conquerida!' : '$conquerides / $totals',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

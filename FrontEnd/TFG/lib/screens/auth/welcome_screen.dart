@@ -27,7 +27,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                // 🔽 Aquí afegim la icona gran
                 Image.asset(
                   'assets/images/icona_app.png',
                   height: 180,
@@ -66,6 +65,14 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'TerritoCAT v1.0 - juny 2025',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                  ),
                 ),
               ],
             ),

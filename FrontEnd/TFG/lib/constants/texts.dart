@@ -58,4 +58,9 @@ class AppTexts {
   static const String textNotificacionsPlaceholder =
       'Configuració de notificacions (pendent d\'implementar)';
 
+  static const String textConfirmacioLogout =
+      'Estàs segur que vols tancar sessió?\n\n'
+      'Per tornar a accedir a la teva partida hauràs d\'introdueix el teu identificador manualment. '
+      'Pots consultar-lo a "El meu identificador".';
+
 }
