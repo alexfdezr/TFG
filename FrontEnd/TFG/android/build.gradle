@@ -1,4 +1,3 @@
-
 allprojects {
     repositories {
         google()
@@ -16,4 +15,11 @@ subprojects {
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
+}
+
+// AFEGEIX AIXÒ AL FINAL DEL FITXER:
+ext {
+    compileSdkVersion = 35
+    minSdkVersion = 21
+    targetSdkVersion = 35
 }

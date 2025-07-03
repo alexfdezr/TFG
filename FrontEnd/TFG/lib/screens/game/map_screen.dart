@@ -31,7 +31,7 @@ class _MapScreenState extends State<MapScreen> {
   List<String> conquestes = [];
   Map<String, String> fotosUsuari = {};
   Map<String, List<String>> fotosAltresUsuaris = {};
-  final double distanciaMaxima = 500.0;
+  final double distanciaMaxima = 25.0;
   final MapController _mapController = MapController();
   bool showRecenterButton = false;
 
